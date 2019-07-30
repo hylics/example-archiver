@@ -66,7 +66,31 @@ int main()
 #ifndef NDEBUG
 #define my_assert(...) assert(__VA_ARGS__)
 #else
-#define my_assert()
+#define my_assert(...)
 #endif
+
+#ifndef NDEBUG
+#define DBG_(...) __VA_ARGS__
+#else
+#define DBG_(...)
+#endif
+
+static inline size_t pow(int base, int exp)
+{
+	if (exp < 0) {
+		return -1;
+	}
+
+	size_t result = 1;
+	while (exp) {
+		if (exp & 1) {
+			result *= base;
+		}
+		exp >>= 1;
+		base *= base;
+	}
+
+	return result;
+}
 
 #endif /* UTILS_H_ */

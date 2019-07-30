@@ -19,7 +19,7 @@ TEMPLATE_DECLARE_ARRAY(uint8_t)
 
 typedef uint8_t_array_t octstr;
 
-TEMPLATE_DECLARE_ARRAY(octstr)
+//TEMPLATE_DECLARE_ARRAY(octstr)
 
 TEMPLATE_DECLARE_ARRAY(uintptr_t)
 
