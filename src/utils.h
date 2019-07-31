@@ -75,7 +75,7 @@ int main()
 #define DBG_(...)
 #endif
 
-static inline size_t pow(int base, int exp)
+static inline size_t pow_simple(int base, int exp)
 {
 	if (exp < 0) {
 		return -1;

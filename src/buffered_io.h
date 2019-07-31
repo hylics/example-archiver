@@ -8,6 +8,8 @@
 #ifndef BUFFERED_IO_H_
 #define BUFFERED_IO_H_
 
+#include <stdint.h>
+
 typedef struct bitstream_writer bitstream_writer_t;
 
 bitstream_writer_t* buffered_io_writer_create(const char *a_file);

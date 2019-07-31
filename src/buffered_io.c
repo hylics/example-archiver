@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
 
 #include "buffered_io.h"
 #include "arrays.h"
@@ -47,7 +48,7 @@ bitstream_writer_t* buffered_io_writer_create(const char *a_file)
 		assert(ret->fd >= 0);
 	}
 	fstat(ret->fd, &ret->sb);
-	ret->buffer = uint8_t_array_create(ret->sb.st_blksize);
+	ret->buffer = uint8_t_array_create(ret->sb.st_blksize * 128);
 	ret->buffer->len = SIZE_MAX;
 
 	return ret;

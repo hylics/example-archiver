@@ -105,7 +105,9 @@ void lzw_compress(options_t *a_options)
 	long left_bytes = 0;
 	int in_fd = open(a_options->file_in, O_RDONLY);
 	assert(in_fd >= 0);
+#ifdef __APPLE__
 	fcntl(in_fd, F_RDAHEAD, 1);
+#endif
 	fstat(in_fd, &sb);
 
 	left_bytes = sb.st_size;
@@ -124,7 +126,7 @@ void lzw_compress(options_t *a_options)
 
 	size_t pos = 0;
 	int codelength = 14;
-	size_t codemax = pow(2, codelength);
+	size_t codemax = pow_simple(2, codelength);
 	debug("codemax %lu\n", codemax);
 
 	TST *dict = NULL;
