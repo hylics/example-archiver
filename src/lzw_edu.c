@@ -125,7 +125,7 @@ void lzw_compress(options_t *a_options)
 	bitstream_writer_t *wstream = buffered_io_writer_create(a_options->file_out);
 
 	size_t pos = 0;
-	int codelength = 14;
+	int codelength = 16;
 	size_t codemax = pow_simple(2, codelength);
 	debug("codemax %lu\n", codemax);
 
@@ -141,7 +141,7 @@ reset_dict:
 		/* if dict contains this WORD+K which is 'cursor prefix + key'
 		 * we set 'code' to corresponding value. In any case we update cursor */
 		if (false == tst_contains_r(&cursor, input->data[pos], &code)) {
-			if (code_cnt < UINT16_MAX) {
+			if (code_cnt < codemax) {
 				/* Out code for WORD, then add 'WORD+K:next code' into dict */
 //				debug("code %d\n", code);
 				buffered_io_writer_write_vcode(wstream, code, codelength);
@@ -166,6 +166,7 @@ reset_dict:
 	tst_destroy(dict);
 	uint8_t_array_destroy(input);
 	close(in_fd);
+	debug("\nInput file has size \t%lld\n", sb.st_size);
 	buffered_io_writer_close(wstream);
 }
 

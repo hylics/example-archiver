@@ -35,6 +35,7 @@ struct bitstream_writer {
 	uint8_t currBitIndex;
 	int fd;
 	struct stat sb;
+	size_t written_len;
 };
 
 static bool write_buffer2file(bitstream_writer_t *a_buffer);
@@ -49,7 +50,7 @@ bitstream_writer_t* buffered_io_writer_create(const char *a_file)
 	}
 	fstat(ret->fd, &ret->sb);
 	ret->buffer = uint8_t_array_create(ret->sb.st_blksize * 128);
-	ret->buffer->len = SIZE_MAX;
+	ret->buffer->len = 0;
 
 	return ret;
 }
@@ -60,6 +61,7 @@ void buffered_io_writer_close(bitstream_writer_t *a_buffer)
 		write_buffer2file(a_buffer);
 		fsync(a_buffer->fd);
 		close(a_buffer->fd);
+		printf("Output file has size \t%lu\n", a_buffer->written_len);
 		uint8_t_array_destroy(a_buffer->buffer);
 		free(a_buffer);
 	}
@@ -71,7 +73,7 @@ static bool write_buffer2file(bitstream_writer_t *a_buffer)
 	void *ptr = a_buffer->buffer->data;
 	int ret;
 
-	if (len == SIZE_MAX) {
+	if (len == 0) {
 		printf("buffer is empty\n");
 		return true;
 	}
@@ -87,6 +89,7 @@ static bool write_buffer2file(bitstream_writer_t *a_buffer)
 		len -= ret;
 		ptr += ret;
 	}
+	a_buffer->written_len += a_buffer->buffer->len;
 	return true;
 }
 
@@ -102,7 +105,7 @@ void buffered_io_writer_write_vcode(bitstream_writer_t *a_stream
 
 	while (bits > 0) {
 		if (a_stream->currBitIndex == 0) {
-			a_stream->buffer->data[++a_stream->buffer->len] = code.bytes.b1;
+			a_stream->buffer->data[++a_stream->buffer->len - 1] = code.bytes.b1;
 			if (bits < 8) {
 				a_stream->currBitIndex += bits;
 				bits = 0;
@@ -116,11 +119,12 @@ void buffered_io_writer_write_vcode(bitstream_writer_t *a_stream
 				if (unlikely(false == write_buffer2file(a_stream))) {
 					exit(EXIT_FAILURE);
 				}
-				a_stream->buffer->len = SIZE_MAX;
+				a_stream->buffer->len =
+						(a_stream->currBitIndex == 0) ? 0 : 1;
 			}
 		} else {
 			const code_t tmp = {.holder = code.holder >> a_stream->currBitIndex};
-			a_stream->buffer->data[a_stream->buffer->len] |= tmp.bytes.b1;
+			a_stream->buffer->data[a_stream->buffer->len - 1] |= tmp.bytes.b1;
 			const uint_fast8_t bitsWritten = 8 - a_stream->currBitIndex;
 
 			if (bits < bitsWritten) {
