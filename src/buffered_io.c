@@ -15,7 +15,6 @@
 #include <netinet/in.h>
 
 #include "buffered_io.h"
-#include "arrays.h"
 #include "utils.h"
 #include "log.h"
 
@@ -32,24 +31,39 @@ typedef union {
 
 struct bitstream_writer {
 	uint8_t_array_t *buffer;
-	uint8_t currBitIndex;
 	int fd;
-	struct stat sb;
+	uint8_t currBitIndex;
 	size_t written_len;
+};
+
+struct bitstream_reader {
+	uint8_t_array_t *buffer;
+	int fd;
+	uint8_t currBitIndex;
+	uint8_t currByteIndex;
 };
 
 static bool write_buffer2file(bitstream_writer_t *a_buffer);
 
+uint8_t_array_t* io_reader_get_array(bitstream_reader_t *a_stream) {
+	return a_stream->buffer;
+}
+
+uint8_t_array_t* io_writer_get_array(bitstream_writer_t *a_stream) {
+	return a_stream->buffer;
+}
+
 bitstream_writer_t* buffered_io_writer_create(const char *a_file)
 {
+	struct stat sb;
 	bitstream_writer_t *ret = calloc(1, sizeof(*ret));
 	ret->fd = open(a_file, O_CREAT|O_WRONLY|O_EXCL|O_APPEND/*|O_NONBLOCK*/);
 	if (ret->fd < 0) {
 		printf("[%s]: %s\n", a_file, strerror(errno));
 		assert(ret->fd >= 0);
 	}
-	fstat(ret->fd, &ret->sb);
-	ret->buffer = uint8_t_array_create(ret->sb.st_blksize * 128);
+	fstat(ret->fd, &sb);
+	ret->buffer = uint8_t_array_create(sb.st_blksize * 128);
 	ret->buffer->len = 0;
 
 	return ret;
@@ -137,4 +151,52 @@ void buffered_io_writer_write_vcode(bitstream_writer_t *a_stream
 			}
 		}
 	}
+}
+
+
+bitstream_reader_t* io_reader_create(const char *a_file)
+{
+	struct stat sb;
+	bitstream_reader_t *ret = calloc(1, sizeof(*ret));
+	ret->fd = open(a_file, O_RDONLY);
+	if (ret->fd < 0) {
+		printf("[%s]: %s\n", a_file, strerror(errno));
+		assert(ret->fd >= 0);
+	}
+#ifdef __APPLE__
+	fcntl(ret->fd, F_RDAHEAD, 1);
+#elif __linux__
+
+#endif
+
+	fstat(ret->fd, &sb);
+	ret->buffer = uint8_t_array_create(sb.st_size);
+	ret->buffer->len = sb.st_size;
+
+	long n = 0;
+	long left_bytes = sb.st_size;
+
+	while (left_bytes) {
+		n = read(ret->fd, ret->buffer->data + n, left_bytes);
+		assert(n > 0 && "fread failed");
+		left_bytes -= n;
+	}
+	printf("Input stream has size \t%zu\n", ret->buffer->size);
+	return ret;
+}
+
+void io_reader_destroy(bitstream_reader_t *a_stream)
+{
+	if (a_stream) {
+		printf("Input stream has size \t%zu\n", a_stream->buffer->size);
+		uint8_t_array_destroy(a_stream->buffer);
+		close(a_stream->fd);
+		free(a_stream);
+	}
+}
+
+uint16_t io_reader_read_vcode(bitstream_reader_t *a_stream
+		, uint8_t codelength)
+{
+	return 0;
 }

@@ -98,34 +98,14 @@ static void prefill_dict(TST *t, int left, int right)
 
 void lzw_compress(options_t *a_options)
 {
-	struct stat sb;
 	debug("%s %s\n", __func__, a_options->file_in);
 
-	long n = 0;
-	long left_bytes = 0;
-	int in_fd = open(a_options->file_in, O_RDONLY);
-	assert(in_fd >= 0);
-#ifdef __APPLE__
-	fcntl(in_fd, F_RDAHEAD, 1);
-#endif
-	fstat(in_fd, &sb);
-
-	left_bytes = sb.st_size;
-	uint8_t_array_t *input = uint8_t_array_create(left_bytes);
-	debug("file size %lld, IO block size %d\n"
-			, sb.st_size, sb.st_blksize);
-
-	while (left_bytes) {
-		n = read(in_fd, input->data + n, left_bytes);
-		assert(n > 0 && "fread failed");
-		left_bytes -= n;
-	}
-	input->len = sb.st_size;
-
+	bitstream_reader_t *rstream = io_reader_create(a_options->file_in);
 	bitstream_writer_t *wstream = buffered_io_writer_create(a_options->file_out);
 
+	uint8_t_array_t *input = io_reader_get_array(rstream);
 	size_t pos = 0;
-	int codelength = 16;
+	int codelength = 14;
 	size_t codemax = pow_simple(2, codelength);
 	debug("codemax %lu\n", codemax);
 
@@ -148,11 +128,10 @@ reset_dict:
 				++code_cnt;
 				tst_insert_r(&cursor, input->data[pos], code_cnt);
 			} else {
-				debug("reset dict, pos %zu\n", pos);
+				printf("reset dict, pos %zu\n", pos);
 				buffered_io_writer_write_vcode(wstream, code, codelength);
 				tst_destroy(dict);
 				goto reset_dict;
-//				exit(1);
 			}
 			/* set 'cursor' and 'code' to position of 'K' */
 			cursor = tst_get_cursor(dict);
@@ -164,9 +143,7 @@ reset_dict:
 //	debug("code %d\n", code);
 
 	tst_destroy(dict);
-	uint8_t_array_destroy(input);
-	close(in_fd);
-	debug("\nInput file has size \t%lld\n", sb.st_size);
+	io_reader_destroy(rstream);
 	buffered_io_writer_close(wstream);
 }
 
