@@ -56,9 +56,19 @@ END of WHILE
  *
  */
 
+#define CODELEN_MIN 9
+#define CODELEN_MAX 12
+
+enum reserved_codes {
+	RESERVED_DICT_RESET=0,
+	RESERVED_CODELENGTH_INC,
+	RESERVED_COUNT
+};
+
 __attribute__((unused))
 static void test(void);
-static void prefill_dict(TST *t, int left, int right);
+static void _prefill_dict_r(TST *t, int left, int right);
+static void prefill_dict(TST *t);
 
 
 
@@ -67,53 +77,50 @@ static void test(void)
 {
 	TST *t = tst_create();
 
-	prefill_dict(t, 0, 255);
-//	TSTCursor cursor = tst_get_cursor(t);
-//
-//	uint16_t sym = 0;
-//	debug("1 tst contains '5'? %d %d\n", tst_contains_r(&cursor, 5, &sym), sym);
-//	for (int i = 0; i < 40; ++i) {
-//		cursor = tst_get_cursor(t);
-//		tst_insert_r(&cursor, i, i*i);
-//	}
-//	cursor = tst_get_cursor(t);
-//	debug("2 tst contains '5'? %d %d\n", tst_contains_r(&cursor, 5, &sym), sym);
-
+	prefill_dict(t);
 	tst_dump(t);
 
 	tst_destroy(t);
 }
 
-static void prefill_dict(TST *t, int left, int right)
+static void _prefill_dict_r(TST *t, int left, int right)
 {
 	if ((right - left) < 1) {
 		return;
 	}
 	int middle = (left + right)/2;
 	TSTCursor cursor = tst_get_cursor(t);
-	tst_insert_r(&cursor, middle, middle + 1);
-	prefill_dict(t, left, middle);
-	prefill_dict(t, middle+1, right);
+	/* 0 is reserved as stop code */
+	tst_insert_r(&cursor, middle, middle + RESERVED_COUNT);
+	_prefill_dict_r(t, left, middle);
+	_prefill_dict_r(t, middle+1, right);
+}
+
+static void prefill_dict(TST *t)
+{
+	_prefill_dict_r(t, 0, 255);
 }
 
 void lzw_compress(options_t *a_options)
 {
 	debug("%s %s\n", __func__, a_options->file_in);
 
-	bitstream_reader_t *rstream = io_reader_create(a_options->file_in);
+	bitstreams_test(a_options->file_out);
+	exit(1);
+
 	bitstream_writer_t *wstream = buffered_io_writer_create(a_options->file_out);
-
-	uint8_t_array_t *input = io_reader_get_array(rstream);
+	uint8_t_array_t *input = read_file(a_options->file_in);
 	size_t pos = 0;
-	int codelength = 14;
-	size_t codemax = pow_simple(2, codelength);
-	debug("codemax %lu\n", codemax);
-
 	TST *dict = NULL;
+
 reset_dict:
 	dict = tst_create();
-	prefill_dict(dict, 0, 255);
-	int code_cnt = 257;
+	prefill_dict(dict);
+	int code_cnt = UINT8_MAX + RESERVED_COUNT;
+	int codelength = CODELEN_MIN;
+	size_t codemax = pow_simple(2, codelength) - 1;
+	debug("codemax %lu\n", codemax);
+
 	uint16_t code = 0;
 	TSTCursor cursor = tst_get_cursor(dict);
 
@@ -127,9 +134,20 @@ reset_dict:
 				buffered_io_writer_write_vcode(wstream, code, codelength);
 				++code_cnt;
 				tst_insert_r(&cursor, input->data[pos], code_cnt);
+			} else if (codelength < CODELEN_MAX) {
+				buffered_io_writer_write_vcode(wstream, RESERVED_CODELENGTH_INC
+						, codelength);
+				codelength++;
+				codemax = pow_simple(2, codelength) - 1;
+				buffered_io_writer_write_vcode(wstream, code, codelength);
+				++code_cnt;
+				tst_insert_r(&cursor, input->data[pos], code_cnt);
+				debug("codemax %lu\n", codemax);
 			} else {
 				printf("reset dict, pos %zu\n", pos);
 				buffered_io_writer_write_vcode(wstream, code, codelength);
+				buffered_io_writer_write_vcode(wstream, RESERVED_DICT_RESET
+										, codelength);
 				tst_destroy(dict);
 				goto reset_dict;
 			}
@@ -143,7 +161,8 @@ reset_dict:
 //	debug("code %d\n", code);
 
 	tst_destroy(dict);
-	io_reader_destroy(rstream);
+	printf("input has size \t\t%zu\n", input->size);
+	uint8_t_array_destroy(input);
 	buffered_io_writer_close(wstream);
 }
 
