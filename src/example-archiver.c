@@ -7,12 +7,14 @@
  Description : Simple archiver written for educational purposes
  ============================================================================
  */
+#define _POSIX_C_SOURCE 2
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <string.h>
+#include <strings.h>
 #include <math.h>
 
 #include "options.h"

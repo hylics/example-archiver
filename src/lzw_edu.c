@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -17,6 +18,7 @@
 #include "log.h"
 #include "arrays.h"
 #include "tst.h"
+#include "dict.h"
 #include "utils.h"
 #include "buffered_io.h"
 
@@ -105,9 +107,6 @@ void lzw_compress(options_t *a_options)
 {
 	debug("%s %s\n", __func__, a_options->file_in);
 
-	bitstreams_test(a_options->file_out);
-	exit(1);
-
 	bitstream_writer_t *wstream = buffered_io_writer_create(a_options->file_out);
 	uint8_t_array_t *input = read_file(a_options->file_in);
 	size_t pos = 0;
@@ -127,10 +126,9 @@ reset_dict:
 	do {
 		/* if dict contains this WORD+K which is 'cursor prefix + key'
 		 * we set 'code' to corresponding value. In any case we update cursor */
-		if (false == tst_contains_r(&cursor, input->data[pos], &code)) {
+		if (unlikely(false == tst_contains_r(&cursor, input->data[pos], &code))) {
 			if (code_cnt < codemax) {
 				/* Out code for WORD, then add 'WORD+K:next code' into dict */
-//				debug("code %d\n", code);
 				buffered_io_writer_write_vcode(wstream, code, codelength);
 				++code_cnt;
 				tst_insert_r(&cursor, input->data[pos], code_cnt);
@@ -144,7 +142,7 @@ reset_dict:
 				tst_insert_r(&cursor, input->data[pos], code_cnt);
 				debug("codemax %lu\n", codemax);
 			} else {
-				printf("reset dict, pos %zu\n", pos);
+				debug("reset dict, pos %zu\n", pos);
 				buffered_io_writer_write_vcode(wstream, code, codelength);
 				buffered_io_writer_write_vcode(wstream, RESERVED_DICT_RESET
 										, codelength);
@@ -158,7 +156,6 @@ reset_dict:
 		++pos;
 	} while (pos != input->len);
 	buffered_io_writer_write_vcode(wstream, code, codelength);
-//	debug("code %d\n", code);
 
 	tst_destroy(dict);
 	printf("input has size \t\t%zu\n", input->size);
@@ -169,5 +166,52 @@ reset_dict:
 void lzw_decompress(options_t *a_options)
 {
 	debug("%s %s\n", __func__, a_options->file_in);
+
+//	bitstream_reader_t *reader = bitstream_reader_create(
+//			read_file(a_options->file_in));
+//	uint8_t_array_t *string = uint8_t_array_create(1000);
+//	Dict *dict = NULL;
+//	uint8_t codelength = CODELEN_MIN;
+//	uint32_t code_old = io_reader_read_vcode(reader, codelength);
+//	debug("%u\n", code_old);
+//	uint8_t sym = code_old;
+//	_code code;
+//	__dict_get(dict, code_old, &code);
+//
+//	while (io_reader_is_posible_read_next(reader, codelength)) {
+//		uint32_t code_new = io_reader_read_vcode(reader, codelength);
+//		if (__dict_get(dict, code_new, &code)) {
+//			__dict_translate(dict, code, string);
+//		} else {
+//			__dict_translate(dict, code, string);
+//			string->data[string->len] = sym;
+//		}
+//		debug("%s\n", string->data);
+//		sym = string->data[0];
+//
+//		code_old = code_new;
+//	}
+//
+//
+//	io_reader_destroy(reader);
+
+
+	/*
+	 * читать СТАРЫЙ_КОД
+вывести СТАРЫЙ_КОД
+СИМВОЛ = СТАРЫЙ_КОД
+WHILE входной поток не пуст DO
+	читать НОВЫЙ_КОД
+	IF NOT в таблице перевода НОВЫЙ_КОД THEN
+		СТРОКА = перевести СТАРЫЙ_КОД
+		СТРОКА = СТРОКА+СИМВОЛ
+	ELSE
+		СТРОКА = перевести НОВЫЙ_КОД
+	END of IF
+	вывести СТРОКУ
+	СИМВОЛ = первый символ СТРОКИ
+	добавить в таблицу перевода СТАРЫЙ_КОД+СИМВОЛ
+	СТАРЫЙ_КОД = НОВЫЙ_КОД
+END of WHILE*/
 }
 

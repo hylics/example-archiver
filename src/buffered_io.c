@@ -64,7 +64,7 @@ bitstream_writer_t* buffered_io_writer_create(const char *a_file)
 		assert(ret->fd >= 0);
 	}
 	fstat(ret->fd, &sb);
-	ret->buffer = uint8_t_array_create(sb.st_blksize * 128);
+	ret->buffer = uint8_t_array_create(sb.st_blksize * 64);
 	ret->buffer->len = 0;
 
 	return ret;
