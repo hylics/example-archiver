@@ -105,7 +105,7 @@ static bool write_buffer2file(bitstream_writer_t *a_buffer)
 		ptr += ret;
 	}
 	a_buffer->written_len += a_buffer->buffer->len;
-	debug("dump to file %zu bytes\n", a_buffer->buffer->len);
+	debug("written to file %zu bytes\n", a_buffer->written_len);
 	return true;
 }
 

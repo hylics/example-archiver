@@ -11,6 +11,15 @@
 
 #include "tst.h"
 #include "utils.h"
+#include "linmalloc.h"
+
+#define USE_LINMALLOC 0
+
+#if USE_LINMALLOC == 1
+#define M_CALLOC(a_n, a_size) lincalloc(_s_allocator, a_n, a_size)
+#else
+#define	M_CALLOC(a_n, a_size) calloc(a_n, a_size)
+#endif
 
 struct tst_node {
     uint8_t key;                /* value to split on */
@@ -25,6 +34,7 @@ struct ternary_search_tree {
 	size_t prefix_count;
 };
 
+static linalloc_t *_s_allocator = NULL;
 
 static void destroy_node_recursive(struct tst_node *node)
 {
@@ -38,7 +48,12 @@ static void destroy_node_recursive(struct tst_node *node)
 
 TST* tst_create(void)
 {
-	TST *tst = calloc(1, sizeof(*tst));
+	if (USE_LINMALLOC) {
+		_s_allocator = linalloc_create();
+	}
+
+	TST *tst = M_CALLOC(1, sizeof(*tst));
+	tst->prefix_count = 0;
 	my_assert(tst);
 	return tst;
 }
@@ -47,8 +62,13 @@ TST* tst_create(void)
 void tst_destroy(TST *t)
 {
 	my_assert(t);
-	destroy_node_recursive(t->root);
-	free(t);
+	if (USE_LINMALLOC) {
+		linalloc_free_all(_s_allocator);
+		_s_allocator = NULL;
+	} else {
+		destroy_node_recursive(t->root);
+		free(t);
+	}
 }
 
 TSTCursor tst_get_cursor(const TST *t)
@@ -98,10 +118,15 @@ void tst_insert_r(TSTCursor *cursor, const uint8_t key, const uint16_t value)
 
 	while (1) {
 		if (unlikely(*pp == NULL)) {
-			*pp = p = calloc(1, sizeof(*p));
+			*pp = p = M_CALLOC(1, sizeof(*p));
 			my_assert(p);
 			p->key = key;
 			p->value = value;
+			if (USE_LINMALLOC) {
+				p->eq = NULL;
+				p->gt = NULL;
+				p->lt = NULL;
+			}
 			return;
 		}
 

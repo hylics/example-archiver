@@ -10,7 +10,8 @@ C_SRCS += \
 ../src/example-archiver.c \
 ../src/hash.c \
 ../src/lzw_edu.c \
-../src/tst.c 
+../src/tst.c \
+../src/linmalloc.c
 
 OBJS += \
 ./src/arrays.o \
@@ -19,7 +20,8 @@ OBJS += \
 ./src/example-archiver.o \
 ./src/hash.o \
 ./src/lzw_edu.o \
-./src/tst.o 
+./src/tst.o \
+./src/linmalloc.o
 
 C_DEPS += \
 ./src/arrays.d \
@@ -28,7 +30,8 @@ C_DEPS += \
 ./src/example-archiver.d \
 ./src/hash.d \
 ./src/lzw_edu.d \
-./src/tst.d 
+./src/tst.d \
+./src/linmalloc.d
 
 
 # Each subdirectory must supply rules for building sources it contributes
